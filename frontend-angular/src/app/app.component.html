@@ -1,0 +1,235 @@
+<!-- NAV -->
+<nav class="nav">
+  <div class="logo">Pneumo<span>Scan</span> AI</div>
+  <div class="nav-right">
+    <div class="health-dot" [class.online]="health?.models_loaded" [class.offline]="!health?.models_loaded">
+      {{ health?.models_loaded ? 'Models Ready' : health?.status === 'offline' ? 'Backend Offline' : 'Loading Models...' }}
+    </div>
+    <span class="nav-device" *ngIf="health?.device">{{ health?.device }} {{ health?.cuda_available ? '· GPU' : '· CPU' }}</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-tag">Chest X-Ray AI Diagnostics</div>
+  <h1>Detect lung conditions with <em>clinical-grade</em> AI</h1>
+  <p>Upload a chest X-ray for instant classification across Normal, Pneumonia, COVID-19, and Tuberculosis using your trained ensemble model.</p>
+
+  <div class="model-stats">
+    <div class="stat-chip">
+      <div class="dot green"></div>
+      <span class="lbl">ResNet-18</span>
+      <span class="acc">97.15%</span>
+    </div>
+    <div class="stat-chip">
+      <div class="dot blue"></div>
+      <span class="lbl">ViT-Small (4×)</span>
+      <span class="acc">96.63%</span>
+    </div>
+    <div class="stat-chip featured">
+      <div class="dot amber"></div>
+      <span class="lbl">Ensemble ✦</span>
+      <span class="acc">97.50%</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN GRID -->
+<main class="main-grid">
+
+  <!-- LEFT: Upload Panel -->
+  <section class="panel upload-panel">
+    <div class="panel-head">
+      <div class="panel-icon">🫁</div>
+      <div>
+        <div class="panel-title">Upload X-Ray Image</div>
+        <div class="panel-sub">JPEG · PNG · max 10 MB</div>
+      </div>
+    </div>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone"
+         *ngIf="!previewUrl"
+         (drop)="onDrop($event)"
+         (dragover)="onDragOver($event)"
+         (click)="fileInput.click()">
+      <input #fileInput type="file" accept="image/*" (change)="onFileSelected($event)" hidden>
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17,8 12,3 7,8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="drop-label">Drop your chest X-ray here</div>
+      <div class="drop-sub">or <span>click to browse</span></div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-area" *ngIf="previewUrl">
+      <img [src]="previewUrl" alt="X-ray preview" class="preview-img">
+      <div class="preview-actions">
+        <span class="file-name">{{ selectedFile?.name }}</span>
+        <button class="btn-ghost" (click)="reset()">Change image</button>
+      </div>
+    </div>
+
+    <!-- Model Selector -->
+    <div class="field-group">
+      <label class="field-label">Model</label>
+      <select class="field-select" [(ngModel)]="selectedModel">
+        <option value="ensemble">Ensemble (ResNet-18 + ViT) — 97.50%</option>
+        <option value="resnet">ResNet-18 Advanced — 97.15%</option>
+        <option value="vit">ViT-Small (4× Data) — 96.63%</option>
+        <option value="all">Compare All Three Models</option>
+      </select>
+    </div>
+
+    <!-- Analyze Button -->
+    <button class="btn-primary"
+            (click)="analyze()"
+            [disabled]="!selectedFile || isLoading || !health?.models_loaded">
+      <span *ngIf="!isLoading">Analyze X-Ray</span>
+      <span *ngIf="isLoading" class="loading-dots">Analyzing<span>.</span><span>.</span><span>.</span></span>
+    </button>
+
+    <!-- Backend offline warning -->
+    <div class="alert alert-warn" *ngIf="health && !health.models_loaded">
+      ⚠ {{ health.error || 'Models not loaded. Start the FastAPI backend.' }}
+    </div>
+
+    <div class="disclaimer">
+      ⚕ For educational and research use only. This tool does not replace professional medical diagnosis. Always consult a licensed physician.
+    </div>
+  </section>
+
+  <!-- RIGHT: Results -->
+  <section class="panel results-panel">
+
+    <!-- Idle -->
+    <div class="idle-state" *ngIf="!isLoading && !result && !allResults && !error">
+      <div class="idle-icon">🔬</div>
+      <p>Upload a chest X-ray image and click Analyze to receive an AI-powered diagnostic report</p>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <div class="loading-text">Running inference...</div>
+      <div class="loading-sub">{{ selectedModel === 'all' ? 'Running all 3 models' : 'Model: ' + selectedModel }}</div>
+    </div>
+
+    <!-- Error -->
+    <div class="alert alert-error" *ngIf="error" style="margin:1.5rem;">
+      ❌ {{ error }}
+    </div>
+
+    <!-- Single Model Result -->
+    <div *ngIf="result && currentInfo" class="result-wrapper">
+
+      <!-- Header -->
+      <div class="result-head">
+        <span class="badge" [ngClass]="currentInfo.badgeClass">{{ result.prediction }}</span>
+        <div class="conf-summary">
+          <span class="conf-num">{{ result.confidence }}%</span>
+          <span class="conf-lbl">confidence</span>
+        </div>
+        <div class="infer-time">{{ result.inference_ms }}ms</div>
+      </div>
+
+      <!-- Urgency Bar -->
+      <div class="urgency-bar" [ngClass]="'urgency-' + currentInfo.urgency">
+        <div class="urgency-dot-anim"></div>
+        {{ currentInfo.urgencyText }}
+      </div>
+
+      <!-- Probability Bars -->
+      <div class="prob-section">
+        <div class="section-label">Classification Probabilities</div>
+        <div class="prob-row" *ngFor="let p of sortedProbabilities">
+          <div class="prob-top">
+            <span class="prob-name" [class.prob-winner]="p.key === result.prediction">{{ p.key }}</span>
+            <span class="prob-pct">{{ p.value.toFixed(1) }}%</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill" [style.width.%]="p.value" [style.background]="barColor(p.key)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Condition Info -->
+      <div class="info-section">
+        <div class="section-label">About this Condition</div>
+        <p class="condition-desc">{{ currentInfo.description }}</p>
+      </div>
+
+      <!-- Symptom / Treatment / Next Steps Cards -->
+      <div class="cards-grid">
+        <div class="info-card">
+          <div class="info-card-title">Symptoms</div>
+          <ul class="info-list">
+            <li *ngFor="let s of currentInfo.symptoms">{{ s }}</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Treatment</div>
+          <ul class="info-list">
+            <li *ngFor="let t of currentInfo.treatments">{{ t }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Next Steps -->
+      <div class="next-steps">
+        <div class="info-card-title">Recommended Next Steps</div>
+        <div class="steps-list">
+          <div class="step" *ngFor="let step of currentInfo.nextSteps; let i = index">
+            <div class="step-num">{{ i + 1 }}</div>
+            <div class="step-text">{{ step }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meta -->
+      <div class="meta-row">
+        <span>Model: <strong>{{ result.model }}</strong></span>
+        <span>Device: <strong>{{ health?.device }}</strong></span>
+      </div>
+    </div>
+
+    <!-- All Models Comparison -->
+    <div *ngIf="allResults" class="compare-wrapper">
+      <div class="section-label" style="padding:1.25rem 1.5rem 0;">Model Comparison</div>
+      <div class="compare-grid">
+        <div class="compare-card" *ngFor="let m of [allResults.resnet, allResults.vit, allResults.ensemble]">
+          <div class="compare-model-name">{{ m.model }}</div>
+          <div class="compare-prediction">
+            <span class="badge" [ngClass]="classInfo[m.prediction]?.badgeClass">{{ m.prediction }}</span>
+            <span class="compare-conf">{{ m.confidence }}%</span>
+          </div>
+          <div class="compare-bars">
+            <div class="prob-row" *ngFor="let cls of ['Normal','Pneumonia','COVID19','Tuberculosis']">
+              <div class="prob-top">
+                <span class="prob-name" style="font-size:0.75rem;">{{ cls }}</span>
+                <span class="prob-pct" style="font-size:0.75rem;">{{ (m.probabilities[cls] || 0).toFixed(1) }}%</span>
+              </div>
+              <div class="prob-track" style="height:4px;">
+                <div class="prob-fill" [style.width.%]="m.probabilities[cls] || 0" [style.background]="barColor(cls)"></div>
+              </div>
+            </div>
+          </div>
+          <div class="compare-time">{{ m.inference_ms.toFixed(0) }}ms</div>
+        </div>
+      </div>
+      <div class="meta-row" style="margin-top:0;">
+        Total inference: <strong>{{ allResults.total_inference_ms.toFixed(0) }}ms</strong>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="footer">
+  PneumoScan AI — FastAPI + Angular · Ensemble ResNet-18 + ViT-Small · Trained on Chest X-Ray, COVID-19, and TB datasets<br>
+  <span>Not a substitute for professional medical advice, diagnosis, or treatment.</span>
+</footer>
