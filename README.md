@@ -12,21 +12,21 @@ Models: ResNet-18 (97.15%) · ViT-Small (96.63%) · Ensemble (97.50%)
 ```
 pneumoscan/
 ├── backend/
-│   ├── main.py                  ← FastAPI app (all endpoints)
-│   ├── requirements.txt         ← Python dependencies
-│   ├── .env                     ← Environment config
-│   └── models/                  ← ⚠️ PUT YOUR .pth FILES HERE
+│   ├── main.py                  
+│   ├── requirements.txt        
+│   ├── .env                     
+│   └── models/                  
 │       ├── best_resnet18_advanced.pth
 │       └── best_vit_advanced.pth
 │
 ├── frontend-angular/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── app.component.ts     ← Main component logic
-│   │   │   ├── app.component.html   ← UI template
-│   │   │   ├── app.component.scss   ← Styles
-│   │   │   ├── app.config.ts        ← Angular providers
-│   │   │   └── pneumo.service.ts    ← API service
+│   │   │   ├── app.component.ts     
+│   │   │   ├── app.component.html  
+│   │   │   ├── app.component.scss   
+│   │   │   ├── app.config.ts        
+│   │   │   └── pneumo.service.ts    
 │   │   ├── main.ts
 │   │   ├── index.html
 │   │   └── styles.scss
@@ -35,33 +35,15 @@ pneumoscan/
 │   ├── tsconfig.json
 │   └── tsconfig.app.json
 │
-├── start_backend.sh             ← Linux/Mac: run backend
-├── start_backend.bat            ← Windows: run backend
-├── start_frontend.sh            ← Linux/Mac: run frontend
+├── start_backend.sh             
+├── start_backend.bat            
+├── start_frontend.sh           
 └── README.md
 ```
 
 ---
 
-## Step 1 — Copy Your Trained Models
-
-Download your `.pth` files from Google Drive and paste them in:
-
-```
-backend/models/best_resnet18_advanced.pth
-backend/models/best_vit_advanced.pth
-```
-
-> **Quick copy from Google Drive on Colab:**
-> ```python
-> import shutil
-> shutil.copy('/content/drive/MyDrive/ChestXray_Project_X/models/best_resnet18_advanced.pth', '.')
-> shutil.copy('/content/drive/MyDrive/ChestXray_Project_X/models/best_vit_advanced.pth', '.')
-> ```
-
----
-
-## Step 2 — Start the FastAPI Backend
+Start the FastAPI Backend
 
 ### Linux / macOS
 ```bash
@@ -116,7 +98,7 @@ npm start            # starts dev server
 
 ---
 
-## Step 4 — Open the App
+## S Open the App
 
 Open your browser: **http://localhost:4200**
 
